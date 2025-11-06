@@ -7,11 +7,24 @@ on:
     # 当代码推送到 master 或 main 分支时触发
     branches: [ master, main ]
     # 当推送版本标签时触发（例如 v1.0.0, 1.2.3 等）
+    # 注意：这是模式匹配，不需要每次部署都修改！
+    # - 'v*.*.*' 匹配所有以 v 开头的版本标签：v1.0.0, v2.3.4, v10.20.30 等
+    # - '*.*.*' 匹配所有不含 v 前缀的版本标签：1.0.0, 2.3.4, 10.20.30 等
+    # 只要你的标签符合这些模式，就会自动触发，无需修改配置
+    # 创建标签（任选一种格式）
+    # git tag v1.0.0
+    # # 或
+    # git tag 1.0.0
+
+    # # 推送到 GitHub
+    # git push origin v1.0.0
+    # # 或
+    # git push origin 1.0.0
     tags: [ 'v*.*.*', '*.*.*' ]
   pull_request:
     # 当向 master 或 main 分支创建 PR 时触发（仅构建，不推送）
     branches: [ master, main ]
-  workflow_dispatch: # 手动触发
+  # workflow_dispatch: # 手动触发
 
 # 全局环境变量
 env:
