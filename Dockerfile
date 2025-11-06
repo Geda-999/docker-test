@@ -11,5 +11,7 @@ RUN npm install
 
 COPY . .
 
+COPY /opt/server /home/server
+
 EXPOSE 8888
 CMD [ "npm", "start" ]

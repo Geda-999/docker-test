@@ -1,59 +1,93 @@
+# 工作流名称：构建并推送 Docker 镜像到 Docker Hub
 name: Build and Push Docker image
 
+# 触发条件配置
 on:
   push:
+    # 当代码推送到 master 或 main 分支时触发
     branches: [ master, main ]
+    # 当推送版本标签时触发（例如 v1.0.0, 1.2.3 等）
     tags: [ 'v*.*.*', '*.*.*' ]
   pull_request:
+    # 当向 master 或 main 分支创建 PR 时触发（仅构建，不推送）
     branches: [ master, main ]
 
+# 全局环境变量
 env:
+  # Docker 镜像名称，格式：DockerHub用户名/仓库名
+  # 需要在 GitHub Secrets 中配置 DOCKERHUB_USERNAME
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/docker-test
 
+# 定义工作流任务
 jobs:
   docker:
+    # 在 Ubuntu 最新版本的虚拟机上运行
     runs-on: ubuntu-latest
+    
+    # 权限配置
     permissions:
-      contents: read
-      packages: write
+      contents: read   # 读取仓库内容
+      packages: write  # 写入包（用于推送镜像）
 
     steps:
+      # 步骤1：检出代码到工作目录
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 步骤2：设置 QEMU（用于支持多架构构建，如 ARM64、AMD64 等）
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      # 步骤3：设置 Docker Buildx（增强的 Docker 构建工具，支持高级功能）
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 步骤4：登录到 Docker Hub
+      # 仅在非 PR 事件时执行（PR 时只构建不推送）
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
+          # Docker Hub 用户名（需要在 GitHub Secrets 中配置）
           username: ${{ secrets.DOCKERHUB_USERNAME }}
+          # Docker Hub 访问令牌（需要在 GitHub Secrets 中配置）
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 步骤5：提取 Docker 元数据并生成镜像标签
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
+          # 基础镜像名称
           images: ${{ env.IMAGE_NAME }}
+          # 标签生成策略（多个标签用 | 分隔）
           tags: |
+            # latest 标签：仅在默认分支（master/main）时生成
             type=raw,value=latest,enable={{is_default_branch}}
+            # 基于提交 SHA 的标签：例如 sha-abc1234
             type=sha
+            # 基于 Git tag 的标签：如果推送了 tag，则使用 tag 名称
             type=ref,event=tag
+            # 语义化版本标签：解析版本号（如 v1.2.3 -> 1.2.3）
             type=semver,pattern={{version}}
+            # 基于分支名的标签：使用分支名作为标签
             type=ref,event=branch
 
+      # 步骤6：构建 Docker 镜像并推送到 Docker Hub
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          # 构建上下文目录（当前目录，即 Dockerfile 所在目录）
           context: .
+          # 是否推送镜像：PR 时不推送，其他情况推送
           push: ${{ github.event_name != 'pull_request' }}
+          # 使用上面生成的标签列表
           tags: ${{ steps.meta.outputs.tags }}
+          # 使用上面生成的标签元数据
           labels: ${{ steps.meta.outputs.labels }}
+          # 使用 GitHub Actions 缓存加速构建（读取缓存）
           cache-from: type=gha
+          # 将构建缓存保存到 GitHub Actions（写入缓存）
           cache-to: type=gha,mode=max
 
 
